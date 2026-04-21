@@ -189,34 +189,50 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    window.copyLogText = function(btn, encodedText) {
+        const text = decodeURIComponent(encodedText);
+        navigator.clipboard.writeText(text).then(() => {
+            const old = btn.textContent;
+            btn.textContent = "Copied!";
+            btn.style.color = "var(--accent)";
+            btn.style.borderColor = "rgba(48,209,88,.3)";
+            setTimeout(() => {
+                btn.textContent = old;
+                btn.style.color = "";
+                btn.style.borderColor = "";
+            }, 2000);
+        });
+    };
+
     function renderLog(log) {
         const list = document.getElementById('intercept-list');
         const full = document.getElementById('full-log');
 
-        // Dashboard: last 5
-        const recent = log.slice(-5).reverse();
-        list.innerHTML = recent.length
-            ? recent.map((e, i) => `
+        // Render helper function 
+        const generateHTML = (entries) => {
+            return entries.map((e, i) => `
                 <div class="intercept-item">
-                    <div class="item-left">
-                        <div class="dot ${i === 0 ? 'active' : 'inactive'}"></div>
-                        <span>${esc(e.text.length > 60 ? e.text.substring(0,60) + '…' : e.text)}</span>
+                    <div class="item-header">
+                        <div class="item-left">
+                            <div class="dot ${i === 0 ? 'active' : 'inactive'}"></div>
+                            <span class="item-right">${esc(e.time)}</span>
+                        </div>
+                        <button class="copy-btn" onclick="window.copyLogText(this, '${encodeURIComponent(e.text)}')">Copy</button>
                     </div>
-                    <div class="item-right">${esc(e.time)}</div>
-                </div>`).join('')
+                    <div class="item-body">${esc(e.text)}</div>
+                </div>`).join('');
+        };
+
+        // Dashboard: last 5
+        const recent = log.slice(-3).reverse();
+        list.innerHTML = recent.length 
+            ? generateHTML(recent) 
             : '<div class="empty-state">No dictations yet</div>';
 
         // History page: all (most recent first)
         const allReversed = log.slice().reverse();
         full.innerHTML = allReversed.length
-            ? allReversed.map(e => `
-                <div class="intercept-item">
-                    <div class="item-left">
-                        <div class="dot active"></div>
-                        <span>${esc(e.text.length > 120 ? e.text.substring(0,120) + '…' : e.text)}</span>
-                    </div>
-                    <div class="item-right">${esc(e.time)}</div>
-                </div>`).join('')
+            ? generateHTML(allReversed)
             : '<div class="empty-state">No dictations yet</div>';
     }
 
