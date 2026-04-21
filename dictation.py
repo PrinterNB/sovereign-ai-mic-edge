@@ -3885,26 +3885,27 @@ class DictationApp:
             # 1. Load dictated text securely into clipboard
             pyperclip.copy(text)
             
-            # Wait briefly to ensure hardware clipboard registers the copy
-            time.sleep(0.08) 
+            # Wait gently to ensure hardware clipboard registers the copy
+            time.sleep(0.15) 
 
             # 2. Bulletproof Paste via native ctypes (bypasses pynput bugs entirely)
             import ctypes
             VK_CONTROL = 0x11
             VK_V = 0x56
-            VK_MENU = 0x12
             VK_LWIN = 0x5B
             VK_RWIN = 0x5C
             VK_SHIFT = 0x10
             KEYEVENTF_KEYUP = 0x0002
             
             try:
-                # FIRST: Aggressively release any modifiers that the OS thinks are actively held down
-                for mod in [VK_MENU, VK_LWIN, VK_RWIN, VK_SHIFT, VK_CONTROL]:
+                # FIRST: Aggressively release shift/win keys, but NEVER Alt (VK_MENU) because
+                # explicitly releasing Alt natively selects the Window Menu Bar and steals focus!
+                for mod in [VK_LWIN, VK_RWIN, VK_SHIFT]:
                     ctypes.windll.user32.keybd_event(mod, 0, KEYEVENTF_KEYUP, 0)
                 
                 time.sleep(0.02)
-                # Press Ctrl (Also natively cancels any active Windows Menu Bar)
+                
+                # Press Ctrl (Ctrl natively cancels any active Windows Menu Bar)
                 ctypes.windll.user32.keybd_event(VK_CONTROL, 0, 0, 0)
                 time.sleep(0.02)
                 # Press V
@@ -3918,14 +3919,9 @@ class DictationApp:
             except Exception as pe:
                 print(f"CTypes paste failed: {pe}")
                 
-            time.sleep(0.25)  # brief wait to ensure target app processes the Ctrl+V before we overwrite clipboard
-
-            # 3. Clean up the user's clipboard quietly
-            try:
-                pyperclip.copy(old_clipboard)
-            except Exception:
-                pass
-
+            # No longer restoring the old clipboard. Restoring the clipboard causes 
+            # race conditions where the target app processes the Ctrl+V *after* we restore it.
+            
         except Exception as e:
             print(f"Type error: {e}")
 
