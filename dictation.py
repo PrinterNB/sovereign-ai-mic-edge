@@ -3593,11 +3593,6 @@ class DictationApp:
         if not self.recording:
             return
 
-        # Crucial Windows Fix: Releasing an Alt key sequentially focuses the OS Menu Bar.
-        # Tapping an inert key (Ctrl) immediately cancels this and preserves box focus!
-        if "alt" in self._hotkey_str.lower():
-            self.kb.tap(pynput_keyboard.Key.ctrl)
-
         elapsed = time.time() - (self.session_start or time.time())
         self.recording = False
         self._diag_add(f"Right Alt released — {elapsed:.1f}s recorded, "
@@ -3891,14 +3886,39 @@ class DictationApp:
             pyperclip.copy(text)
             
             # Wait briefly to ensure hardware clipboard registers the copy
-            time.sleep(0.05) 
+            time.sleep(0.08) 
 
-            # 2. Bulletproof Paste (Because the pill never stole focus using WS_EX_NOACTIVATE, 
-            # our target window is already cleanly focused and waiting)
-            with self.kb.pressed(Key.ctrl):
-                self.kb.tap("v")
+            # 2. Bulletproof Paste via native ctypes (bypasses pynput bugs entirely)
+            import ctypes
+            VK_CONTROL = 0x11
+            VK_V = 0x56
+            VK_MENU = 0x12
+            VK_LWIN = 0x5B
+            VK_RWIN = 0x5C
+            VK_SHIFT = 0x10
+            KEYEVENTF_KEYUP = 0x0002
+            
+            try:
+                # FIRST: Aggressively release any modifiers that the OS thinks are actively held down
+                for mod in [VK_MENU, VK_LWIN, VK_RWIN, VK_SHIFT, VK_CONTROL]:
+                    ctypes.windll.user32.keybd_event(mod, 0, KEYEVENTF_KEYUP, 0)
                 
-            time.sleep(0.2)  # brief wait to ensure target app processes the Ctrl+V before we overwrite clipboard
+                time.sleep(0.02)
+                # Press Ctrl (Also natively cancels any active Windows Menu Bar)
+                ctypes.windll.user32.keybd_event(VK_CONTROL, 0, 0, 0)
+                time.sleep(0.02)
+                # Press V
+                ctypes.windll.user32.keybd_event(VK_V, 0, 0, 0)
+                time.sleep(0.02)
+                # Release V
+                ctypes.windll.user32.keybd_event(VK_V, 0, KEYEVENTF_KEYUP, 0)
+                time.sleep(0.02)
+                # Release Ctrl
+                ctypes.windll.user32.keybd_event(VK_CONTROL, 0, KEYEVENTF_KEYUP, 0)
+            except Exception as pe:
+                print(f"CTypes paste failed: {pe}")
+                
+            time.sleep(0.25)  # brief wait to ensure target app processes the Ctrl+V before we overwrite clipboard
 
             # 3. Clean up the user's clipboard quietly
             try:
