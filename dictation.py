@@ -2973,6 +2973,24 @@ class DictationApp:
         self.pill.attributes("-transparentcolor", PILL_CHROMA)
         self.pill.attributes("-alpha", 0.88)  # Global window translucency for frosted glass effect
         self.pill.configure(bg=PILL_CHROMA)
+
+        # ── EXTREMELY CRITICAL: Prevent the notification pill from stealing focus ──
+        # If the pill steals focus, the dictation Ctrl+V paste gets sent to the wrong window.
+        try:
+            import ctypes
+            hwnd = self.pill.winfo_id()
+            
+            # For overrideredirect tkinter windows, we must patch both the child and wrapper
+            GWL_EXSTYLE = -20
+            WS_EX_NOACTIVATE = 0x08000000
+            
+            for target_hwnd in (hwnd, ctypes.windll.user32.GetParent(hwnd)):
+                if target_hwnd:
+                    ex = ctypes.windll.user32.GetWindowLongW(target_hwnd, GWL_EXSTYLE)
+                    ctypes.windll.user32.SetWindowLongW(target_hwnd, GWL_EXSTYLE, ex | WS_EX_NOACTIVATE)
+        except Exception as e:
+            print(f"Failed to patch window styles: {e}")
+
         self.pill.withdraw()
 
         self._pc = tk.Canvas(self.pill,
@@ -3861,28 +3879,33 @@ class DictationApp:
     # ════════════════════════════════════════════════════════════════════════════
     def _type_text(self, text):
         try:
-            old = ""
+            self.root.after(0, self._hide_pill)
+
+            old_clipboard = ""
             try:
-                old = pyperclip.paste()
+                old_clipboard = pyperclip.paste()
             except Exception:
                 pass
 
-            self.root.after(0, self._hide_pill)
-            time.sleep(0.25)  # Wait for OS to restore focus to original window prior to pill pop-up
-
+            # 1. Load dictated text securely into clipboard
             pyperclip.copy(text)
-            time.sleep(0.15)  # Give clipboard subsystem time to register the new content
+            
+            # Wait briefly to ensure hardware clipboard registers the copy
+            time.sleep(0.05) 
 
-            # Standard Ctrl + V (Much faster and avoids Windows Menu-Bar mnemonic shortcuts)
+            # 2. Bulletproof Paste (Because the pill never stole focus using WS_EX_NOACTIVATE, 
+            # our target window is already cleanly focused and waiting)
             with self.kb.pressed(Key.ctrl):
                 self.kb.tap("v")
-            
-            time.sleep(0.6)   # Give target applications adequate time to process clipboard
+                
+            time.sleep(0.2)  # brief wait to ensure target app processes the Ctrl+V before we overwrite clipboard
 
+            # 3. Clean up the user's clipboard quietly
             try:
-                pyperclip.copy(old)
+                pyperclip.copy(old_clipboard)
             except Exception:
                 pass
+
         except Exception as e:
             print(f"Type error: {e}")
 
