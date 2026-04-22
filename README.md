@@ -15,7 +15,7 @@ It bridges the gap between premium local speech-to-text dictation and modern, pr
   - Say `"Assistant, [question]"` to drop a window on-screen and get AI responses.
   - Say `"Write a prompt, [idea]"` to format complex prompts automatically.
   - Custom Voice Macros to expand short phrases into entire blocks of text (like dropping your email or phone number).
-- **Zero Privacy Loss:** Your `config.json` containing your Gemini keys, internal macros, logs, and statistics is never tracked by source control.
+- **Zero Privacy Loss:** `config.json`, `log.json`, and `stats.json` are stored locally and ignored by source control.
 
 ## Installation
 
@@ -40,3 +40,29 @@ run.bat
 
 This will launch a beautiful Web UI Control Center in a Chromium shell. Your floating transcription tool is now active!
 Just **Hold `Right Alt`** (or your mapped hotkey) and speak. Your voice is transcribed and instantly injected into any active window when you release. 
+
+### Local config (`config.json`)
+- Location: project root (for example, `<project-root>/config.json`, next to `dictation.py`).
+- The app auto-creates this file on first run and updates it when you save settings in the UI.
+- The file is intentionally gitignored, so your Gemini API key and personal macros stay local.
+
+Example structure:
+```json
+{
+  "hotkey_str": "Key.alt_r",
+  "hotkey_display": "Right Alt",
+  "gemini_api_key": "YOUR_GEMINI_API_KEY",
+  "gemini_model": "gemini-2.0-flash",
+  "ai_wake_word": "assistant",
+  "write_prompt_phrase": "write a prompt",
+  "ai_system_prompt": "You are a helpful voice assistant...",
+  "voice_macros": {
+    "my email": "name@example.com",
+    "my phone": "555-0100"
+  }
+}
+```
+
+Notes:
+- Get your Gemini key from [aistudio.google.com](https://aistudio.google.com), then save it in the app's AI page (or set `gemini_api_key` manually).
+- Add any personal/internal info you want to keep private in `voice_macros` (or related settings) inside `config.json`.
