@@ -3668,14 +3668,19 @@ class DictationApp:
                     query = _tl[len(ai_ww):].strip().lstrip(",.!?:;— ").strip()
                     if query:
                         self._diag_add(f'🤖 AI wake word "{ai_ww}" — query: "{query[:40]}"')
-                        self.root.after(0, lambda: self._set_status(
-                            "🤖 Thinking…", "Asking Gemini…", AI_BLUE))
-                        self.root.after(0, self._hide_pill)
-                        threading.Thread(
-                            target=self._handle_ai_query,
-                            args=(query,), daemon=True).start()
-                        self.transcribing = False
-                        return
+                        # Check if Gemini API key is set
+                        api_key = self._config.get("gemini_api_key", "").strip()
+                        if api_key:
+                            self.root.after(0, lambda: self._set_status(
+                                "🤖 Thinking…", "Asking Gemini…", AI_BLUE))
+                            self.root.after(0, self._hide_pill)
+                            threading.Thread(
+                                target=self._handle_ai_query,
+                                args=(query,), daemon=True).start()
+                            self.transcribing = False
+                            return
+                        else:
+                            self._diag_add(f'⚠ No Gemini API key — dictating normally')
                     else:
                         self._diag_add(f'🤖 Wake word heard but no query — dictating normally')
                 # ───────────────────────────────────────────────────────────────
@@ -3687,14 +3692,22 @@ class DictationApp:
                     prompt_body = _tl[len(wp_phrase):].strip().lstrip(",.!?:;— ").strip()
                     if prompt_body:
                         self._diag_add(f'✍️ Write-prompt: "{prompt_body[:40]}"')
-                        self.root.after(0, lambda: self._set_status(
-                            "✍️ Writing…", prompt_body[:45], "#ff9f0a"))
-                        self.root.after(0, self._hide_pill)
-                        threading.Thread(
-                            target=self._handle_write_prompt,
-                            args=(prompt_body,), daemon=True).start()
-                        self.transcribing = False
-                        return
+                        # Check if Gemini API key is set
+                        api_key = self._config.get("gemini_api_key", "").strip()
+                        if api_key:
+                            self.root.after(0, lambda: self._set_status(
+                                "✍️ Writing…", prompt_body[:45], "#ff9f0a"))
+                            self.root.after(0, self._hide_pill)
+                            threading.Thread(
+                                target=self._handle_write_prompt,
+                                args=(prompt_body,), daemon=True).start()
+                            self.transcribing = False
+                            return
+                        else:
+                            self._diag_add(f'⚠ No Gemini API key — pasting prompt as-is')
+                            # Just paste the prompt text without AI generation
+                            self._type_text(prompt_body)
+                            self.root.after(2500, self._reset_ready)
                 # ───────────────────────────────────────────────────────────────
 
                 # ── "Fix that" / "Fix it" — rewrite clipboard for clarity ────────

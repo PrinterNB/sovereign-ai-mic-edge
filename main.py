@@ -136,7 +136,8 @@ print("====================================")
 # root.after() requires mainloop() to be running on the actual main thread.
 def _run_eel():
     try:
-        eel.start('index.html', size=(1200, 800), port=0, block=True)
+        # Use 'edge' to open Microsoft Edge browser instead of default
+        eel.start('index.html', size=(1200, 800), port=0, mode='edge', block=True)
     except (SystemExit, KeyboardInterrupt):
         pass
 
